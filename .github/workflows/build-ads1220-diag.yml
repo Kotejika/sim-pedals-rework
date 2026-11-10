@@ -1,0 +1,131 @@
+name: Build ADS1220 MISO diagnostic
+
+on:
+  push:
+    branches: [ads1220-miso-diag-20261111]
+    paths:
+      - ".github/workflows/build-ads1220-diag.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ads1220-miso-diag
+  cancel-in-progress: false
+
+jobs:
+  host-tests:
+    name: Test ADS1220 and diagnostic protocol
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ads1220-miso-diag-20261111
+
+      - name: Run ADS1220 GPIO-SPI unit tests
+        run: |
+          set -euo pipefail
+          cd final
+          gcc -std=c11 -Wall -Wextra -Werror -Wno-unused-parameter \
+            -Itests/stubs -Ifirmware_pedals/src \
+            tests/test_ads.c firmware_pedals/src/ads1220.c \
+            -o /tmp/test_ads
+          /tmp/test_ads
+
+      - name: Run axis and protocol regression tests
+        run: |
+          set -euo pipefail
+          cd final
+          gcc -std=c11 -Wall -Wextra -Werror -Icommon \
+            tests/test_axis.c common/axis_proc.c -o /tmp/test_axis
+          /tmp/test_axis
+          python3 -I tests/test_python_mirror.py
+          python3 tests/test_protocol_diag.py
+          python3 -m compileall -q pc_app tests
+
+  firmware:
+    name: Build pedal-node diagnostic UF2
+    needs: host-tests
+    runs-on: ubuntu-22.04
+    container:
+      image: ghcr.io/nrfconnect/sdk-nrf-toolchain:v3.1.1
+    defaults:
+      run:
+        shell: bash
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ads1220-miso-diag-20261111
+
+      - name: Verify Nordic toolchain
+        run: |
+          set -euo pipefail
+          command -v west
+          command -v arm-zephyr-eabi-gcc
+          west --version
+          arm-zephyr-eabi-gcc --version
+
+      - name: Initialize nRF Connect SDK 3.1.1
+        run: |
+          set -euo pipefail
+          west init -m https://github.com/nrfconnect/sdk-nrf --mr v3.1.1 ncs
+          cd ncs
+          west update
+          west zephyr-export
+
+      - name: Build diagnostic pedal controller
+        run: |
+          set -euo pipefail
+          cd ncs
+          west build -p always -b promicro_nrf52840/nrf52840/uf2 \
+            ../final/firmware_pedals -d build_pedals
+
+      - name: Validate UF2 and package diagnostic firmware
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, struct
+          src = Path("ncs/build_pedals/firmware_pedals/zephyr/zephyr.uf2")
+          if not src.is_file():
+              raise SystemExit(f"Missing UF2: {src}")
+          data = src.read_bytes()
+          if not data or len(data) % 512:
+              raise SystemExit("UF2 size is not a multiple of 512 bytes")
+          blocks = len(data) // 512
+          addresses = set()
+          for i in range(blocks):
+              off = i * 512
+              magic0, magic1, flags, addr, size, num, total, family = struct.unpack_from("<8I", data, off)
+              end_magic = struct.unpack_from("<I", data, off + 508)[0]
+              if (magic0 != 0x0A324655 or magic1 != 0x9E5D5157 or end_magic != 0x0AB16F30 or
+                  size != 256 or num != i or total != blocks or family != 0xADA52840 or
+                  not (flags & 0x2000) or addr % 256 or addr in addresses):
+                  raise SystemExit(f"UF2 block {i} failed validation")
+              addresses.add(addr)
+          out = Path("artifacts")
+          out.mkdir(exist_ok=True)
+          (out / "pedals-ADS1220-MISO-DIAGNOSTIC.uf2").write_bytes(data)
+          build_dir = Path("ncs/build_pedals/firmware_pedals/zephyr")
+          (out / "pedals.elf").write_bytes((build_dir / "zephyr.elf").read_bytes())
+          (out / "pedals.config").write_bytes((build_dir / ".config").read_bytes())
+          sha = hashlib.sha256(data).hexdigest()
+          (out / "SHA256SUM.txt").write_text(sha + "  pedals-ADS1220-MISO-DIAGNOSTIC.uf2\n", encoding="utf-8")
+          (out / "README_RU.txt").write_text(
+              "Диагностическая прошивка только для педального узла Pro Micro nRF52840.\n"
+              "Она совместима с текущим финальным hub.uf2: радиопакет не изменён.\n"
+              "После старта в статусе приложения появится MISO idle HIGH/LOW.\n"
+              "Код ошибки 5 означает: MISO остаётся LOW, когда CS неактивен.\n"
+              "Это тест линии, а не финальное исправление ADS1220.\n",
+              encoding="utf-8")
+          print(f"UF2 validated: {len(data)} bytes, {blocks} blocks, SHA256={sha}")
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sim-pedals-ADS1220-MISO-diagnostic
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 30
