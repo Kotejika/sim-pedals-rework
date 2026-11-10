@@ -1,0 +1,44 @@
+name: Export user error screenshot for review
+
+on:
+  push:
+    branches: [error-review-20261111]
+    paths: [".github/workflows/export-error-screenshot.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout review branch
+        uses: actions/checkout@v4
+        with:
+          ref: error-review-20261111
+      - name: Checkout photo branch read-only
+        uses: actions/checkout@v4
+        with:
+          ref: photo
+          path: photo-source
+      - name: Copy latest screenshot without modifying photo branch
+        run: |
+          set -euo pipefail
+          mkdir -p review
+          cp "photo-source/Снимок экрана 2026-11-11 035251.png" review/error.png
+          python3 - <<'PY'
+          from pathlib import Path
+          import struct
+          b=Path("review/error.png").read_bytes()
+          if b[:8] != bytes([137,80,78,71,13,10,26,10]):
+              raise SystemExit("Screenshot is not PNG")
+          w,h=struct.unpack(">II",b[16:24])
+          print(f"Screenshot: {w}x{h}, {len(b)} bytes")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: user-error-screenshot
+          path: review/error.png
+          if-no-files-found: error
+          retention-days: 14
