@@ -5,37 +5,6 @@ if len(sys.argv) != 2:
     raise SystemExit("usage: harden_final.py <source-root>")
 root = Path(sys.argv[1]).resolve()
 
-# Avoid reading stale bytes past the actual ESB payload length.
-p = root / "firmware_hub/src/radio.c"
-s = p.read_text()
-old = '''\tbool has_diag = (m->flags & PP_FLAG_DIAG_EXT) != 0;
-\tsize_t expected_len = has_diag ? PP_DATA_DIAG_LEN(m->n_axes) : PP_DATA_LEN(m->n_axes);
-\tif (p->length < PP_DATA_HDR_LEN || m->type != PP_PKT_DATA || t < 1 || t > PP_DEV_MAX_TYPE ||
-\t    m->dev_type != t || m->n_axes == 0 || m->n_axes > PP_MAX_AXES_PER_DEV ||
-\t    (has_diag && (t != PP_DEV_PEDALS || m->n_axes != 3)) || p->length < expected_len) {'''
-new = '''\t/* The ESB buffer has a fixed allocation; only p->length bytes are valid. */
-\tif (p->length < PP_DATA_HDR_LEN) {
-\t\tg_stats.rx_bad++;
-\t\tg_stats.bad_len = p->length;
-\t\tg_stats.bad_b0 = p->length ? p->data[0] : 0;
-\t\treturn;
-\t}
-\tif (m->type != PP_PKT_DATA || t < 1 || t > PP_DEV_MAX_TYPE || m->dev_type != t ||
-\t    m->n_axes == 0 || m->n_axes > PP_MAX_AXES_PER_DEV) {
-\t\tg_stats.rx_bad++;
-\t\tg_stats.bad_len = p->length;
-\t\tg_stats.bad_b0 = p->data[0];
-\t\treturn;
-\t}
-\tbool has_diag = (m->flags & PP_FLAG_DIAG_EXT) != 0;
-\tsize_t expected_len = has_diag ? PP_DATA_DIAG_LEN(m->n_axes) : PP_DATA_LEN(m->n_axes);
-\tif (p->length != expected_len ||
-\t    (has_diag && (t != PP_DEV_PEDALS || m->n_axes != 3)) ||
-\t    (has_diag && !(m->flags & PP_FLAG_SENSOR_ERR))) {'''
-if old not in s:
-    raise SystemExit("Expected radio validation block not found")
-p.write_text(s.replace(old, new))
-
 # Compile-time assertions for radio packet bounds.
 p = root / "common/pedal_protocol.h"
 s = p.read_text()
