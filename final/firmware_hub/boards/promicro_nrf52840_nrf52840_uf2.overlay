@@ -1,0 +1,32 @@
+#include <zephyr/dt-bindings/gpio/gpio.h>
+/* Hub: USB gamepad (8 axes, 32 buttons) + vendor config interface */
+&uart0 { status = "disabled"; };
+&i2c0  { status = "disabled"; };
+&i2c1  { status = "disabled"; };
+&pwm0  { status = "disabled"; };
+&spi2  { status = "disabled"; };
+&ieee802154 { status = "disabled"; };
+
+/ {
+	hid_pad: hid_pad {
+		compatible = "zephyr,hid-device";
+		label = "Sim Pedals";
+		protocol-code = "none";
+		in-polling-period-us = <1000>;
+		in-report-size = <20>;
+	};
+
+	hid_cfg: hid_cfg {
+		compatible = "zephyr,hid-device";
+		label = "Sim Pedals Config";
+		protocol-code = "none";
+		in-polling-period-us = <1000>;
+		in-report-size = <64>;
+		out-report-size = <64>;
+		out-polling-period-us = <1000>;
+	};
+
+	zephyr,user {
+		led-gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>;
+	};
+};

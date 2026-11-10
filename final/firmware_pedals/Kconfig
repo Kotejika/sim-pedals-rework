@@ -1,0 +1,36 @@
+menu "Sim pedals"
+
+config PEDALS_IDLE_MINUTES
+	int "Default idle time before power off (minutes, 0 = never)"
+	default 20
+
+config PEDALS_ACTIVITY_THR_ADS
+	int "Brake movement threshold for 'activity' (ADS1220 counts)"
+	default 6000
+
+config PEDALS_ACTIVITY_THR_ADC
+	int "Clutch/throttle movement threshold for 'activity' (14-bit counts)"
+	default 40
+
+config PEDALS_EXT_POWER_CTRL
+	bool "Switch sensor power rail (nice!nano VCC pin) with P0.13"
+	default y
+	help
+	  Powers the sensors only while awake. UNVERIFIED polarity: assumed HIGH = on.
+	  If the sensors stay dead, flip PEDALS_EXT_POWER_ACTIVE_HIGH.
+
+config PEDALS_EXT_POWER_ACTIVE_HIGH
+	bool "P0.13 HIGH enables the VCC pin"
+	default y
+
+config PEDALS_BATT_SENSE
+	bool "Read battery voltage on P0.04 (AIN2, nice!nano divider 2:1)"
+	default y
+
+config PEDALS_LOW_BATT_MV
+	int "Low battery flag threshold (mV)"
+	default 3500
+
+endmenu
+
+source "Kconfig.zephyr"

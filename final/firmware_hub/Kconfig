@@ -1,0 +1,43 @@
+menu "Sim hub"
+
+# Names kept identical to Zephyr's USB samples so usb_init.c (derived from the sample) works as is.
+config SAMPLE_USBD_MANUFACTURER
+	string "USB manufacturer string"
+	default "DIY"
+
+config SAMPLE_USBD_PRODUCT
+	string "USB product string"
+	default "Sim Pedals Hub"
+
+config SAMPLE_USBD_PID
+	hex "USB product ID"
+	default 0x5E00
+
+config SAMPLE_USBD_SELF_POWERED
+	bool "Self powered attribute"
+
+config SAMPLE_USBD_REMOTE_WAKEUP
+	bool "Remote wakeup attribute"
+
+config SAMPLE_USBD_MAX_POWER
+	int "bMaxPower (2 mA units)"
+	default 100
+
+config SAMPLE_USBD_20_EXTENSION_DESC
+	bool "USB 2.0 extension descriptor"
+
+config HUB_IDLE_MINUTES
+	int "Default pedal idle power-off time pushed to pedals (minutes)"
+	default 20
+
+config HUB_ACK_PAYLOAD
+	bool "Send commands to pedals in ACK payloads"
+	default y
+
+config HUB_DIAG_LEVEL
+	int "Bring-up ladder: 0 blinky only, 1 +USB, 2 +flash settings, 3 full hub"
+	default 3
+
+endmenu
+
+source "Kconfig.zephyr"

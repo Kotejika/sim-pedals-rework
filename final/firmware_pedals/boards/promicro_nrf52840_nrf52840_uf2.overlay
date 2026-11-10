@@ -1,0 +1,75 @@
+/* Pedals pin map (nice!nano v2 / ProMicro nRF52840 pinout, Pro Micro labels in brackets)
+ *
+ *  ADS1220 (brake load cell)       nRF pin   Pro Micro
+ *    SCLK                          P0.17      D2
+ *    DIN  (MOSI)                   P0.20      D3
+ *    DOUT (MISO)                   P0.22      D4
+ *    CS                            P0.24      D5
+ *    DRDY                          P1.00      D6
+ *  Clutch SS49E out                P0.31      A0 (21)  AIN7
+ *  Throttle SS49E out              P0.29      A1 (20)  AIN5
+ *  Battery divider (on board)      P0.04               AIN2
+ *  Wake button (to GND)            P1.06      D9       (reset button also wakes)
+ *  Sensor rail switch (on board)   P0.13
+ *  LED (on board)                  P0.15
+ */
+#include <zephyr/dt-bindings/adc/adc.h>
+#include <zephyr/dt-bindings/adc/nrf-saadc.h>
+#include <zephyr/dt-bindings/gpio/gpio.h>
+
+&uart0 { status = "disabled"; };
+&i2c0  { status = "disabled"; };
+&i2c1  { status = "disabled"; };
+&pwm0  { status = "disabled"; };
+&ieee802154 { status = "disabled"; };
+
+/* ADS1220 is driven by software SPI on plain GPIO (see ads1220.c), no SPI peripheral needed */
+
+&adc {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	channel@0 {   /* clutch */
+		reg = <0>;
+		zephyr,gain = "ADC_GAIN_1_6";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,vref-mv = <600>;
+		zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_MICROSECONDS, 5)>;
+		zephyr,input-positive = <NRF_SAADC_AIN7>;
+		zephyr,resolution = <14>;
+		zephyr,oversampling = <3>;
+	};
+	channel@1 {   /* throttle */
+		reg = <1>;
+		zephyr,gain = "ADC_GAIN_1_6";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,vref-mv = <600>;
+		zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_MICROSECONDS, 5)>;
+		zephyr,input-positive = <NRF_SAADC_AIN5>;
+		zephyr,resolution = <14>;
+		zephyr,oversampling = <3>;
+	};
+	channel@2 {   /* battery (divider 1:1 on nice!nano, 10 us is plenty for 1M... use 40 us) */
+		reg = <2>;
+		zephyr,gain = "ADC_GAIN_1_6";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,vref-mv = <600>;
+		zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_MICROSECONDS, 40)>;
+		zephyr,input-positive = <NRF_SAADC_AIN2>;
+		zephyr,resolution = <12>;
+	};
+};
+
+/ {
+	zephyr,user {
+		io-channels = <&adc 0>, <&adc 1>, <&adc 2>;
+		cs-gpios    = <&gpio0 24 GPIO_ACTIVE_LOW>;
+		sck-gpios   = <&gpio0 17 GPIO_ACTIVE_HIGH>;
+		mosi-gpios  = <&gpio0 20 GPIO_ACTIVE_HIGH>;
+		miso-gpios  = <&gpio0 22 GPIO_ACTIVE_HIGH>;
+		drdy-gpios  = <&gpio1 0 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+		wake-gpios  = <&gpio1 6 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+		power-gpios = <&gpio0 13 GPIO_ACTIVE_HIGH>;
+		led-gpios   = <&gpio0 15 GPIO_ACTIVE_HIGH>;
+	};
+};
