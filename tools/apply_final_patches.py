@@ -246,6 +246,15 @@ s=s.replace('''\td->flags = m->flags;
 \t} else {
 \t\tmemset(&d->diag, 0, sizeof(d->diag));
 \t}''')
+s = s.replace('old', 'old') if False else s
+
+# The replacement above changes the validation predicate. Remove the original
+# validation body that follows it; otherwise the old error body is duplicated.
+tail = """\n\t\tg_stats.rx_bad++;\n\t\tg_stats.bad_len = p->length;\n\t\tg_stats.bad_b0 = p->data[0];\n\t\treturn;\n\t}\n\n\tint64_t now = k_uptime_get();"""
+if tail not in s:
+    raise SystemExit("duplicate ESB validation tail not found; review the source version")
+s = s.replace(tail, "\n\tint64_t now = k_uptime_get();", 1)
+
 p.write_text(s)
 
 # USB live frame carries a fixed-size ADS diagnostic record after three true axes.
