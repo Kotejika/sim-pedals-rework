@@ -53,12 +53,6 @@ static void on_data(const struct esb_payload *p)
 		g_stats.bad_b0 = p->data[0];
 		return;
 	}
-		g_stats.rx_bad++;
-		g_stats.bad_len = p->length;
-		g_stats.bad_b0 = p->data[0];
-		return;
-	}
-
 	int64_t now = k_uptime_get();
 	k_spinlock_key_t k = k_spin_lock(&g_lock);
 	struct dev_state *d = &g_dev[t];
