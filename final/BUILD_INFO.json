@@ -1,10 +1,10 @@
 {
   "project": "Sim Pedals",
   "source_archive": "from-claude/sim_pedals_v5.1.zip",
-  "source_commit": "adb2900d3ea9e698d26eeb5eb1a7db6351c0b4bf",
+  "source_commit": "d507dc73fdd4527a733d715469ec40e1add516d7",
   "ads1220_spi_mode": "Mode 1 (CPOL=0, CPHA=1)",
   "ads1220_half_delay_us": 2,
   "playable_pedal_axes": 3,
   "ads1220_diagnostics": "separate 7-byte metadata extension",
   "hardware_validation": "pending physical board smoke test"
-}\n
+}
