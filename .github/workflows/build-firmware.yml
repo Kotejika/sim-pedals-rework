@@ -114,15 +114,15 @@ jobs:
       - name: Verify and collect firmware
         run: |
           set -euo pipefail
-          test -s ncs/build_pedals/zephyr/zephyr.uf2
-          test -s ncs/build_hub/zephyr/zephyr.uf2
+          test -s ncs/build_pedals/firmware_pedals/zephyr/zephyr.uf2
+          test -s ncs/build_hub/firmware_hub/zephyr/zephyr.uf2
           mkdir -p artifacts
-          cp ncs/build_pedals/zephyr/zephyr.uf2 artifacts/pedals.uf2
-          cp ncs/build_hub/zephyr/zephyr.uf2 artifacts/hub.uf2
-          cp ncs/build_pedals/zephyr/zephyr.elf artifacts/pedals.elf
-          cp ncs/build_hub/zephyr/zephyr.elf artifacts/hub.elf
-          cp ncs/build_pedals/zephyr/.config artifacts/pedals.config
-          cp ncs/build_hub/zephyr/.config artifacts/hub.config
+          cp ncs/build_pedals/firmware_pedals/zephyr/zephyr.uf2 artifacts/pedals.uf2
+          cp ncs/build_hub/firmware_hub/zephyr/zephyr.uf2 artifacts/hub.uf2
+          cp ncs/build_pedals/firmware_pedals/zephyr/zephyr.elf artifacts/pedals.elf
+          cp ncs/build_hub/firmware_hub/zephyr/zephyr.elf artifacts/hub.elf
+          cp ncs/build_pedals/firmware_pedals/zephyr/.config artifacts/pedals.config
+          cp ncs/build_hub/firmware_hub/zephyr/.config artifacts/hub.config
           {
             echo "commit=${{ github.sha }}"
             echo "ncs=v3.1.1"
