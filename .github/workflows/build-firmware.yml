@@ -1,0 +1,112 @@
+name: Build Sim Pedals (NCS 3.1.1)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "source-archive/**"
+      - ".github/workflows/build-firmware.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sim-pedals-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Host tests and both UF2 targets
+    runs-on: ubuntu-22.04
+    container:
+      image: ghcr.io/nrfconnect/sdk-nrf-toolchain:v3.1.1
+    defaults:
+      run:
+        shell: bash
+    timeout-minutes: 120
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Reconstruct V2 source archive
+        run: |
+          set -euo pipefail
+          cat source-archive/chunk-*.b64 > /tmp/source-v2.tar.gz.b64
+          base64 --decode /tmp/source-v2.tar.gz.b64 > /tmp/source-v2.tar.gz
+          tar -tzf /tmp/source-v2.tar.gz >/dev/null
+          mkdir -p source
+          tar -xzf /tmp/source-v2.tar.gz -C source
+          test -f source/firmware_pedals/src/main.c
+          test -f source/firmware_hub/src/main.c
+          test -f source/common/pedal_protocol.h
+          echo "V2 firmware source reconstructed successfully."
+
+      - name: Run host C tests
+        run: |
+          set -euo pipefail
+          cd source
+          gcc -std=c11 -Wall -Wextra -Icommon \
+            tests/test_axis.c common/axis_proc.c -o /tmp/test_axis
+          /tmp/test_axis
+
+      - name: Run Python mirror tests
+        run: |
+          set -euo pipefail
+          cd source
+          python3 -I tests/test_python_mirror.py
+
+      - name: Initialize nRF Connect SDK v3.1.1
+        run: |
+          set -euo pipefail
+          west init -m https://github.com/nrfconnect/sdk-nrf --mr v3.1.1 ncs
+          cd ncs
+          west update
+          west zephyr-export
+
+      - name: Build pedal controller UF2
+        run: |
+          set -euo pipefail
+          cd ncs
+          west build -p always \
+            -b promicro_nrf52840/nrf52840/uf2 \
+            ../source/firmware_pedals \
+            -d build_pedals
+
+      - name: Build USB hub UF2
+        run: |
+          set -euo pipefail
+          cd ncs
+          west build -p always \
+            -b promicro_nrf52840/nrf52840/uf2 \
+            ../source/firmware_hub \
+            -d build_hub
+
+      - name: Verify and collect firmware
+        run: |
+          set -euo pipefail
+          test -s ncs/build_pedals/zephyr/zephyr.uf2
+          test -s ncs/build_hub/zephyr/zephyr.uf2
+          mkdir -p artifacts
+          cp ncs/build_pedals/zephyr/zephyr.uf2 artifacts/pedals.uf2
+          cp ncs/build_hub/zephyr/zephyr.uf2 artifacts/hub.uf2
+          cp ncs/build_pedals/zephyr/zephyr.elf artifacts/pedals.elf
+          cp ncs/build_hub/zephyr/zephyr.elf artifacts/hub.elf
+          cp ncs/build_pedals/zephyr/.config artifacts/pedals.config
+          cp ncs/build_hub/zephyr/.config artifacts/hub.config
+          {
+            echo "commit=${{ github.sha }}"
+            echo "ncs=v3.1.1"
+            echo "board=promicro_nrf52840/nrf52840/uf2"
+            echo "source=V2 baseline"
+          } > artifacts/build-info.txt
+          ls -lh artifacts
+
+      - name: Upload firmware artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sim-pedals-firmware-${{ github.sha }}
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 30
