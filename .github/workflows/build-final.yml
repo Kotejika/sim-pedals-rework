@@ -89,7 +89,7 @@ jobs:
               "playable_pedal_axes": 3,
               "ads1220_diagnostics": "separate 7-byte metadata extension",
               "hardware_validation": "pending physical board smoke test"
-          }, indent=2) + "\\n", encoding="utf-8")
+          }, indent=2) + "\n", encoding="utf-8")
           PY
 
       - name: Install Qt test dependencies
@@ -269,9 +269,9 @@ jobs:
               build_dir = Path(f"ncs/build_{name}/firmware_{name}/zephyr")
               (out / f"{name}.elf").write_bytes((build_dir / "zephyr.elf").read_bytes())
               (out / f"{name}.config").write_bytes((build_dir / ".config").read_bytes())
-          (out / "build-info.json").write_text(json.dumps(info, indent=2) + "\\n", encoding="utf-8")
+          (out / "build-info.json").write_text(json.dumps(info, indent=2) + "\n", encoding="utf-8")
           (out / "SHA256SUMS.txt").write_text(
-              "\\n".join(f"{v['sha256']}  {k}.uf2" for k, v in info["firmware"].items()) + "\\n",
+              "\n".join(f"{v['sha256']}  {k}.uf2" for k, v in info["firmware"].items()) + "\n",
               encoding="utf-8")
           print(json.dumps(info["firmware"], indent=2))
           PY
