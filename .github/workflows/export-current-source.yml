@@ -1,4 +1,4 @@
-name: Export complete Sim Pedals source
+name: Export complete working Sim Pedals source
 
 on:
   push:
