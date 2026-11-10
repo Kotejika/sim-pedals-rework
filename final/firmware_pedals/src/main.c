@@ -302,7 +302,7 @@ int main(void)
 		if (!ads_ok) {
 			struct pp_diag *diag = (struct pp_diag *)&pkt->axes[9];
 			diag->error = ads_diag.err;
-			diag->drdy_active = drdy_active ? 1 : 0;
+			diag->drdy_active = (drdy_active ? 1 : 0) | (ads_diag.miso_idle_high ? 2 : 0);
 			diag->tries = ads_diag.tries;
 			memcpy(diag->regs, ads_diag.regs, sizeof(diag->regs));
 		}
