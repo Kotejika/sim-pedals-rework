@@ -88,6 +88,7 @@ int ads1220_init(struct ads1220 *a)
 
 	if (ads_diag.tries < UINT8_MAX) ads_diag.tries++;
 	ads_diag.err = ADS_ERR_DEV;
+	ads_diag.miso_idle_high = 0;
 	memset(ads_diag.regs, 0, sizeof(ads_diag.regs));
 	if (!gpio_is_ready_dt(&a->cs) || !gpio_is_ready_dt(&a->sck) ||
 	    !gpio_is_ready_dt(&a->mosi) || !gpio_is_ready_dt(&a->miso)) return -ENODEV;
