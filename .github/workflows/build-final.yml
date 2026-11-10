@@ -122,6 +122,12 @@ jobs:
       - name: Package tested source tree
         run: |
           set -euo pipefail
+          # Never ship stale UF2/prebuilt images or Python bytecode from the input archive.
+          find final -type d -name __pycache__ -prune -exec rm -rf {} +
+          find final -type f -name '*.pyc' -delete
+          find final -type f -name '*.uf2' -delete
+          rm -rf final/prebuilt
+          rm -f "final/ЧТО ДЕЛАТЬ УТРОМ.md"
           python3 - <<'PY'
           from pathlib import Path
           import zipfile, hashlib
