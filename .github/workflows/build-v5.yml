@@ -39,10 +39,23 @@ jobs:
         run: |
           set -euo pipefail
           test -s v5-input/sim_pedals_v5.1.zip
-          mkdir -p v5-source
-          unzip -q v5-input/sim_pedals_v5.1.zip -d v5-source
-          test -f v5-source/firmware_pedals/src/ads1220.c
-          test -f v5-source/firmware_hub/src/main.c
+          python3 - <<'PY'
+          import zipfile
+          from pathlib import Path
+          archive = Path("v5-input/sim_pedals_v5.1.zip")
+          destination = Path("v5-source")
+          with zipfile.ZipFile(archive) as zf:
+              bad = zf.testzip()
+              if bad:
+                  raise SystemExit(f"Corrupt ZIP member: {bad}")
+              zf.extractall(destination)
+          for required in (
+              destination / "firmware_pedals/src/ads1220.c",
+              destination / "firmware_hub/src/main.c",
+          ):
+              if not required.is_file():
+                  raise SystemExit(f"Missing required V5 source: {required}")
+          PY
           cp v5-fix/ads1220.c v5-source/firmware_pedals/src/ads1220.c
           echo "Applied repository v5-fix/ads1220.c"
           sha256sum v5-source/firmware_pedals/src/ads1220.c
