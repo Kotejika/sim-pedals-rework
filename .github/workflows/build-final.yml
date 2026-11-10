@@ -1,0 +1,197 @@
+name: Build Sim Pedals Final
+
+on:
+  push:
+    branches: [final]
+    paths:
+      - "final-src/**"
+      - ".github/workflows/build-final.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sim-pedals-final-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  host-tests:
+    name: Host tests and Python validation
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: from-claude
+          path: v5-input
+      - name: Extract source and overlay final ADS1220 driver
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import zipfile
+          with zipfile.ZipFile("v5-input/sim_pedals_v5.1.zip") as z:
+              bad = z.testzip()
+              if bad:
+                  raise SystemExit(f"Corrupt source archive member: {bad}")
+              z.extractall("project")
+          PY
+          cp final-src/ads1220.c project/firmware_pedals/src/ads1220.c
+      - name: Build and run C tests
+        run: |
+          set -euo pipefail
+          gcc -std=c11 -Wall -Wextra -Werror -Iproject/tests/stubs project/tests/test_ads.c project/firmware_pedals/src/ads1220.c -o /tmp/test_ads
+          /tmp/test_ads
+          gcc -std=c11 -Wall -Wextra -Werror -Iproject/common project/tests/test_axis.c project/common/axis_proc.c -o /tmp/test_axis
+          /tmp/test_axis
+      - name: Run Python mirror and syntax checks
+        run: |
+          set -euo pipefail
+          python3 project/tests/test_python_mirror.py
+          python3 -m py_compile project/pc_app/*.py final-src/patch_app.py
+
+  firmware:
+    name: Build pedal and hub UF2
+    runs-on: ubuntu-22.04
+    container:
+      image: ghcr.io/nrfconnect/sdk-nrf-toolchain:v3.1.1
+    defaults:
+      run:
+        shell: bash
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: from-claude
+          path: v5-input
+      - name: Extract complete source and overlay final driver
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import zipfile
+          with zipfile.ZipFile("v5-input/sim_pedals_v5.1.zip") as z:
+              bad = z.testzip()
+              if bad:
+                  raise SystemExit(f"Corrupt source archive member: {bad}")
+              z.extractall("project")
+          PY
+          cp final-src/ads1220.c project/firmware_pedals/src/ads1220.c
+          command -v west
+          command -v arm-zephyr-eabi-gcc
+      - name: Initialize Nordic Connect SDK 3.1.1
+        run: |
+          set -euo pipefail
+          west init -m https://github.com/nrfconnect/sdk-nrf --mr v3.1.1 ncs
+          cd ncs
+          west update
+          west zephyr-export
+      - name: Build pedal controller
+        run: |
+          set -euo pipefail
+          cd ncs
+          west build -p always -b promicro_nrf52840/nrf52840/uf2 ../project/firmware_pedals -d build_pedals
+      - name: Build USB hub
+        run: |
+          set -euo pipefail
+          cd ncs
+          west build -p always -b promicro_nrf52840/nrf52840/uf2 ../project/firmware_hub -d build_hub
+      - name: Verify and stage firmware
+        run: |
+          set -euo pipefail
+          test -s ncs/build_pedals/firmware_pedals/zephyr/zephyr.uf2
+          test -s ncs/build_hub/firmware_hub/zephyr/zephyr.uf2
+          mkdir -p out
+          cp ncs/build_pedals/firmware_pedals/zephyr/zephyr.uf2 out/pedals.uf2
+          cp ncs/build_hub/firmware_hub/zephyr/zephyr.uf2 out/hub.uf2
+          cp ncs/build_pedals/firmware_pedals/zephyr/zephyr.elf out/pedals.elf
+          cp ncs/build_hub/firmware_hub/zephyr/zephyr.elf out/hub.elf
+          cp ncs/build_pedals/firmware_pedals/zephyr/.config out/pedals.config
+          cp ncs/build_hub/firmware_hub/zephyr/.config out/hub.config
+          {
+            echo "source=V5.1 project archive plus final-src/ads1220.c"
+            echo "ncs=v3.1.1"
+            echo "board=promicro_nrf52840/nrf52840/uf2"
+            echo "commit=${{ github.sha }}"
+          } > out/build-info.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sim-pedals-final-firmware
+          path: out/
+          if-no-files-found: error
+          retention-days: 30
+
+  windows-app:
+    name: Build Windows app and verify GUI
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: from-claude
+          path: v5-input
+      - name: Extract project and apply final GUI artwork
+        shell: pwsh
+        run: |
+          python -c "import zipfile; z=zipfile.ZipFile('v5-input/sim_pedals_v5.1.zip'); bad=z.testzip(); assert bad is None, bad; z.extractall('project')"
+          New-Item -ItemType Directory -Force project/pc_app/assets | Out-Null
+          Copy-Item final-src/pit_crew_anime.svg project/pc_app/assets/pit_crew_anime.svg
+          python final-src/patch_app.py
+      - name: Install Python application dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r project/pc_app/requirements.txt pyinstaller
+      - name: Run GUI smoke test and syntax checks
+        shell: pwsh
+        run: |
+          $env:PYTHONPATH = "project/pc_app"
+          $env:QT_QPA_PLATFORM = "offscreen"
+          python -c "import pathlib, py_compile; [py_compile.compile(str(p), doraise=True) for p in pathlib.Path('project/pc_app').glob('*.py')]; py_compile.compile('final-src/patch_app.py', doraise=True)"
+          python final-src/test_gui_smoke.py
+      - name: Package Windows executable
+        shell: pwsh
+        run: |
+          $asset = (Resolve-Path "project/pc_app/assets/pit_crew_anime.svg").Path
+          pyinstaller --noconfirm --clean --onefile --windowed --name SimPedals --distpath dist --workpath build --specpath build --add-data "$asset;assets" --hidden-import hid project/pc_app/app.py
+          if (!(Test-Path "dist/SimPedals.exe")) { throw "SimPedals.exe was not created" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sim-pedals-final-windows
+          path: dist/SimPedals.exe
+          if-no-files-found: error
+          retention-days: 30
+
+  package:
+    name: Assemble final download
+    needs: [host-tests, firmware, windows-app]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: sim-pedals-final-firmware
+          path: package
+      - uses: actions/download-artifact@v4
+        with:
+          name: sim-pedals-final-windows
+          path: package
+      - name: Add Russian instructions and calculate checksums
+        run: |
+          set -euo pipefail
+          cp final-src/INSTALL_RU.txt package/INSTALL_RU.txt
+          cp final-src/pit_crew_anime.svg package/pit_crew_anime.svg
+          (cd package && sha256sum pedals.uf2 hub.uf2 SimPedals.exe pit_crew_anime.svg > SHA256SUMS.txt)
+          cat > package/README.txt <<'EOF'
+          SIM PEDALS FINAL
+          The package contains pedals.uf2, hub.uf2 and SimPedals.exe.
+          Read INSTALL_RU.txt before flashing. Keep the previous UF2 files for rollback.
+          Successful compilation/tests do not replace a physical ADS1220 hardware check.
+          EOF
+          zip -r SimPedals-Final.zip package
+          ls -lh SimPedals-Final.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SimPedals-Final
+          path: SimPedals-Final.zip
+          if-no-files-found: error
+          retention-days: 30

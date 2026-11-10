@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+<defs>
+ <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#07111e"/><stop offset=".55" stop-color="#10283a"/><stop offset="1" stop-color="#101224"/></linearGradient>
+ <linearGradient id="hair" x2=".8" y2="1"><stop stop-color="#f6fbff"/><stop offset=".45" stop-color="#9eb4d0"/><stop offset="1" stop-color="#526b8c"/></linearGradient>
+ <linearGradient id="jacket" x2="1" y2="1"><stop stop-color="#173d59"/><stop offset=".5" stop-color="#0b1d31"/><stop offset="1" stop-color="#07111e"/></linearGradient>
+ <linearGradient id="cyan" x2="1"><stop stop-color="#4ce6ed"/><stop offset="1" stop-color="#4b9fcd"/></linearGradient>
+ <radialGradient id="glow"><stop stop-color="#48d8e8" stop-opacity=".28"/><stop offset="1" stop-color="#48d8e8" stop-opacity="0"/></radialGradient>
+ <filter id="blur"><feGaussianBlur stdDeviation="24"/></filter>
+</defs>
+<rect width="1920" height="1080" fill="url(#bg)"/>
+<circle cx="1450" cy="490" r="520" fill="url(#glow)"/>
+<g opacity=".26" stroke="#4cc9d8" fill="none">
+ <path d="M920 160H1860M990 210H1860M1050 260H1860M1200 310H1860" stroke-width="2"/>
+ <path d="M1260 0V1080M1480 0V1080M1700 0V1080" stroke-width="1"/>
+ <path d="M0 860H1920M0 910H1920M0 960H1920" stroke-width="2"/>
+</g>
+<g opacity=".28" fill="#53d8ea">
+ <rect x="1110" y="120" width="560" height="18" rx="9"/>
+ <rect x="1220" y="160" width="390" height="8" rx="4"/>
+ <rect x="1380" y="200" width="300" height="8" rx="4"/>
+</g>
+<g transform="translate(1040 50)">
+ <ellipse cx="440" cy="930" rx="370" ry="65" fill="#020710" opacity=".75" filter="url(#blur)"/>
+ <!-- back hair -->
+ <path d="M330 165C230 210 190 365 210 515L175 740 285 855 650 840 775 670 722 360C695 190 520 95 330 165Z" fill="#7189a7"/>
+ <path d="M330 165C230 210 190 365 210 515L175 740 285 855 650 840 775 670 722 360C695 190 520 95 330 165Z" fill="url(#hair)" opacity=".8"/>
+ <!-- body -->
+ <path d="M260 620C175 665 110 780 90 1050H810C790 815 705 670 590 620L510 590H350Z" fill="url(#jacket)" stroke="#547e9b" stroke-width="5"/>
+ <path d="M337 624L414 760 508 624 565 690 508 1050H315L266 690Z" fill="#132d45" stroke="#3e7894" stroke-width="4"/>
+ <path d="M412 760L468 760 500 1050H380Z" fill="#07111e"/>
+ <path d="M230 780L365 850 310 1050H145Z" fill="#0c2239" stroke="#38617c" stroke-width="4"/>
+ <path d="M585 780L470 850 530 1050H735Z" fill="#0c2239" stroke="#38617c" stroke-width="4"/>
+ <path d="M315 680L415 745 510 680 480 825 415 870 345 825Z" fill="#d6e5f2" opacity=".9"/>
+ <path d="M345 825L415 870 480 825 462 950 415 1000 365 950Z" fill="#35c6d3"/>
+ <path d="M160 850L245 805 280 850 230 900 150 905Z" fill="#49dce4" opacity=".75"/>
+ <path d="M680 850L590 805 555 850 610 900 690 905Z" fill="#49dce4" opacity=".75"/>
+ <!-- neck -->
+ <path d="M350 550L345 675 415 742 485 675 480 545Z" fill="#f3cfca"/>
+ <!-- face -->
+ <path d="M285 295C295 205 360 160 435 164 535 169 582 247 565 363L535 520C520 590 470 640 415 640 355 640 305 590 285 510Z" fill="#f5d9d4" stroke="#d4b5b6" stroke-width="3"/>
+ <!-- ear and headset -->
+ <ellipse cx="280" cy="425" rx="37" ry="58" fill="#efc7c4"/>
+ <path d="M260 414C226 365 228 300 268 242 315 150 405 125 512 160 585 183 627 254 625 360" fill="none" stroke="#c5d8e9" stroke-width="26" stroke-linecap="round"/>
+ <path d="M245 370C222 420 240 493 270 537" fill="none" stroke="#5de0e8" stroke-width="22" stroke-linecap="round"/>
+ <circle cx="258" cy="438" r="42" fill="#183f59" stroke="#68e4ee" stroke-width="9"/>
+ <circle cx="258" cy="438" r="20" fill="#53cfdc"/>
+ <path d="M235 473L205 516 225 532 267 477" fill="#b9cddd"/>
+ <!-- bangs / hair framing -->
+ <path d="M273 344C250 240 318 152 420 142 520 133 590 202 587 305 550 275 520 243 503 207 481 278 436 320 376 338 401 290 404 260 397 229 365 291 326 322 273 344Z" fill="url(#hair)" stroke="#dceafa" stroke-width="5"/>
+ <path d="M292 300C257 393 269 538 321 610L274 658 224 534 240 350Z" fill="#91a8c2"/>
+ <path d="M558 295C612 402 570 553 508 618L552 676 632 536 603 339Z" fill="#a9bed3"/>
+ <!-- eyes -->
+ <path d="M322 412Q360 382 396 414Q360 454 322 412Z" fill="#173047"/>
+ <path d="M443 414Q481 382 518 411Q482 454 443 414Z" fill="#173047"/>
+ <ellipse cx="365" cy="414" rx="12" ry="20" fill="#4bdce6"/>
+ <ellipse cx="484" cy="414" rx="12" ry="20" fill="#4bdce6"/>
+ <circle cx="368" cy="408" r="5" fill="#fff"/><circle cx="487" cy="408" r="5" fill="#fff"/>
+ <path d="M319 392L394 385M440 385L520 389" stroke="#53677e" stroke-width="8" stroke-linecap="round"/>
+ <path d="M390 510Q415 526 440 509" fill="none" stroke="#b97882" stroke-width="5" stroke-linecap="round"/>
+ <path d="M372 545Q415 563 458 544" fill="none" stroke="#dc9d9d" stroke-width="3" opacity=".6"/>
+ <!-- fringe highlights -->
+ <path d="M286 313C310 203 374 164 425 165M398 165C430 222 434 275 423 318M467 176C498 231 532 272 570 294" stroke="#fff" stroke-width="8" opacity=".5" fill="none"/>
+ <!-- hair locks -->
+ <path d="M300 360C273 490 293 633 350 690L280 735 220 607 240 430Z" fill="url(#hair)" stroke="#d8e6f2" stroke-width="3"/>
+ <path d="M550 345C590 477 555 635 492 697L570 735 650 583 612 412Z" fill="url(#hair)" stroke="#d8e6f2" stroke-width="3"/>
+ <!-- jacket collar / pins -->
+ <path d="M315 645L372 703 415 742 360 780 298 690Z" fill="#e1edf4"/>
+ <path d="M515 645L458 703 415 742 470 780 532 690Z" fill="#d5e4ef"/>
+ <path d="M318 750L380 785 350 821 288 790Z" fill="#48d6e2"/>
+ <path d="M515 750L452 785 480 821 545 790Z" fill="#48d6e2"/>
+ <circle cx="546" cy="750" r="13" fill="#80eff0"/>
+ <path d="M585 852L670 830" stroke="#48d6e2" stroke-width="8" stroke-linecap="round"/>
+ <path d="M158 990H720" stroke="#42d6e3" stroke-width="5" opacity=".7"/>
+</g>
+<!-- quiet title zone -->
+<g font-family="Segoe UI, Arial, sans-serif">
+ <text x="110" y="240" fill="#8ca9c1" font-size="25" letter-spacing="8">SIM RACING CONTROL SYSTEM</text>
+ <text x="105" y="335" fill="#effaff" font-size="68" font-weight="700" letter-spacing="2">SIM PEDALS</text>
+ <path d="M110 370H600" stroke="#4bdce6" stroke-width="5"/>
+ <text x="112" y="422" fill="#6bdde6" font-size="23" letter-spacing="5">PRECISION • RESPONSE • CONTROL</text>
+ <text x="112" y="975" fill="#7292ab" font-size="18" letter-spacing="4">PIT CREW EDITION</text>
+</g>
+</svg>
