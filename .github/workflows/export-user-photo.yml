@@ -1,0 +1,50 @@
+name: Export user wallpaper for UI repair
+
+on:
+  push:
+    branches: [ui-repair-20261111]
+    paths:
+      - ".github/workflows/export-user-photo.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout UI repair branch
+        uses: actions/checkout@v4
+        with:
+          ref: ui-repair-20261111
+
+      - name: Checkout user photo branch read-only
+        uses: actions/checkout@v4
+        with:
+          ref: photo
+          path: photo-source
+
+      - name: Verify and package the uploaded wallpaper
+        run: |
+          set -euo pipefail
+          mkdir -p wallpaper
+          test -s "photo-source/Уютный вечер у окна.png"
+          cp "photo-source/Уютный вечер у окна.png" wallpaper/user-wallpaper.png
+          file wallpaper/user-wallpaper.png
+          sha256sum wallpaper/user-wallpaper.png
+          python3 - <<'PY'
+          from PIL import Image
+          p = "wallpaper/user-wallpaper.png"
+          im = Image.open(p)
+          im.verify()
+          print("User wallpaper verified:", im.format, im.size)
+          PY
+
+      - name: Upload wallpaper
+        uses: actions/upload-artifact@v4
+        with:
+          name: user-wallpaper-for-sim-pedals
+          path: wallpaper/user-wallpaper.png
+          if-no-files-found: error
+          retention-days: 14
