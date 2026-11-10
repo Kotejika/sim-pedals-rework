@@ -431,11 +431,12 @@ class Main(QMainWindow):
                 if d.diag:
                     diag = d.diag
                     names = {1: "GPIO/device not ready", 2: "register readback mismatch",
-                             3: "DRDY timeout", 4: "GPIO SPI transfer error"}
+                             3: "DRDY timeout", 4: "GPIO SPI transfer error", 5: "MISO held LOW with CS inactive"}
                     r0, r1, r2, r3 = diag["regs"]
-                    txt += " [%s; regs %02X %02X %02X %02X; DRDY %s; tries %d]" % (
+                    txt += " [%s; regs %02X %02X %02X %02X; DRDY %s; MISO idle %s; tries %d]" % (
                         names.get(diag["error"], "error %d" % diag["error"]), r0, r1, r2, r3,
-                        "LOW (active)" if diag["drdy_active"] else "HIGH (idle)", diag["tries"])
+                        "LOW (active)" if diag["drdy_active"] else "HIGH (idle)",
+                        "HIGH" if diag.get("miso_idle_high") else "LOW", diag["tries"])
                 else:
                     txt += " [diagnostic extension missing; check Hub/firmware pair]"
             self.status.setText(txt + stxt)
