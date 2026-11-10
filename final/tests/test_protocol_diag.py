@@ -15,13 +15,13 @@ pos += 7
 for raw, out in ((101, 1000), (202, 2000), (303, 3000)):
     struct.pack_into("<iH", frame, pos, raw, out)
     pos += 6
-frame[pos:pos + P.PP_DIAG_LEN] = bytes((2, 1, 32, 0xFF, 0xFF, 0xFF, 0xFF))
+frame[pos:pos + P.PP_DIAG_LEN] = bytes((2, 3, 32, 0xFF, 0xFF, 0xFF, 0xFF))
 parsed = P.parse_live(bytes(frame))
 assert parsed is not None and len(parsed) == 1
 dev = parsed[0]
 assert dev.raw == [101, 202, 303]
 assert len(dev.raw) == 3, "diagnostic bytes leaked into the game axes"
-assert dev.diag == {"error": 2, "drdy_active": True, "tries": 32, "regs": (255, 255, 255, 255)}
+assert dev.diag == {"error": 2, "drdy_active": True, "miso_idle_high": True, "tries": 32, "regs": (255, 255, 255, 255)}
 assert dev.sensor_err and dev.has_diag
 
 # A diagnostic extension is legal only for the three-axis pedal node.
