@@ -1,0 +1,57 @@
+name: Export complete Sim Pedals source
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/export-current-source.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: from-claude
+          path: v5-input
+      - name: Extract complete source tree
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import zipfile
+          src = Path("v5-input/sim_pedals_v5.1.zip")
+          with zipfile.ZipFile(src) as z:
+              bad = z.testzip()
+              if bad:
+                  raise SystemExit(f"Corrupt ZIP member: {bad}")
+              z.extractall("project")
+          required = [
+              "pc_app/app.py", "pc_app/device.py", "pc_app/widgets.py",
+              "pc_app/protocol.py", "firmware_pedals/src/ads1220.c",
+              "firmware_pedals/src/main.c", "firmware_hub/src/main.c",
+              "common/pedal_protocol.h", "tests/test_ads.c"
+          ]
+          missing = [f for f in required if not (Path("project")/f).is_file()]
+          if missing:
+              raise SystemExit("Missing required files: " + ", ".join(missing))
+          print("=== COMPLETE FILE INVENTORY ===")
+          for f in sorted(Path("project").rglob("*")):
+              if f.is_file():
+                  print(f"{f.stat().st_size:8d}  {f}")
+          with zipfile.ZipFile("sim-pedals-source.zip", "w", zipfile.ZIP_DEFLATED, 6) as out:
+              for f in sorted(Path("project").rglob("*")):
+                  if f.is_file():
+                      out.write(f, f.relative_to("project").as_posix())
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sim-pedals-complete-source
+          path: sim-pedals-source.zip
+          if-no-files-found: error
+          retention-days: 30
