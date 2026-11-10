@@ -98,8 +98,22 @@ int ads1220_init(struct ads1220 *a)
 	if (ret < 0) return ret;
 	ret = gpio_pin_configure_dt(&a->mosi, GPIO_OUTPUT_INACTIVE);
 	if (ret < 0) return ret;
-	ret = gpio_pin_configure_dt(&a->miso, GPIO_INPUT);
+	ret = gpio_pin_configure_dt(&a->miso, GPIO_INPUT | GPIO_PULL_UP);
 	if (ret < 0) return ret;
+
+	/*
+	 * DOUT/DRDY is high-impedance whenever CS is inactive. Enable the nRF
+	 * pull-up and verify the idle level before sending any commands.
+	 * LOW here means MISO is shorted/held low or the selected GPIO is wrong.
+	 */
+	k_busy_wait(2);
+	ret = gpio_pin_get_dt(&a->miso);
+	if (ret < 0) { ads_diag.err = ADS_ERR_SPI; return ret; }
+	ads_diag.miso_idle_high = ret ? 1 : 0;
+	if (!ads_diag.miso_idle_high) {
+		ads_diag.err = ADS_ERR_MISO_LOW_IDLE;
+		return -EIO;
+	}
 
 	/* Datasheet power-up requirement is 2^14 master clocks; rail was enabled first. */
 	k_msleep(5);
