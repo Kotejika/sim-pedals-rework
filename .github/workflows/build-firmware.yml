@@ -16,8 +16,43 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: Host tests and both UF2 targets
+  host-tests:
+    name: Host C and Python tests
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Reconstruct V2 source archive
+        run: |
+          set -euo pipefail
+          cat source-archive/chunk-*.b64 > /tmp/source-v2.tar.gz.b64
+          base64 --decode /tmp/source-v2.tar.gz.b64 > /tmp/source-v2.tar.gz
+          tar -tzf /tmp/source-v2.tar.gz >/dev/null
+          mkdir -p source
+          tar -xzf /tmp/source-v2.tar.gz -C source
+          test -f source/firmware_pedals/src/main.c
+          test -f source/firmware_hub/src/main.c
+          test -f source/common/pedal_protocol.h
+
+      - name: Run host C tests
+        run: |
+          set -euo pipefail
+          cd source
+          gcc -std=c11 -Wall -Wextra -Werror -Icommon \
+            tests/test_axis.c common/axis_proc.c -o /tmp/test_axis
+          /tmp/test_axis
+
+      - name: Run Python mirror tests
+        run: |
+          set -euo pipefail
+          cd source
+          python3 -I tests/test_python_mirror.py
+          python3 -m compileall -q pc_app
+
+  firmware-build:
+    name: Build pedal node and USB hub UF2
+    needs: host-tests
     runs-on: ubuntu-22.04
     container:
       image: ghcr.io/nrfconnect/sdk-nrf-toolchain:v3.1.1
@@ -41,21 +76,14 @@ jobs:
           test -f source/firmware_pedals/src/main.c
           test -f source/firmware_hub/src/main.c
           test -f source/common/pedal_protocol.h
-          echo "V2 firmware source reconstructed successfully."
 
-      - name: Run host C tests
+      - name: Verify Nordic toolchain
         run: |
           set -euo pipefail
-          cd source
-          gcc -std=c11 -Wall -Wextra -Icommon \
-            tests/test_axis.c common/axis_proc.c -o /tmp/test_axis
-          /tmp/test_axis
-
-      - name: Run Python mirror tests
-        run: |
-          set -euo pipefail
-          cd source
-          python3 -I tests/test_python_mirror.py
+          command -v west
+          command -v arm-zephyr-eabi-gcc
+          west --version
+          arm-zephyr-eabi-gcc --version
 
       - name: Initialize nRF Connect SDK v3.1.1
         run: |
