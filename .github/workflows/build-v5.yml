@@ -1,0 +1,110 @@
+name: Build V5.2 candidate (ADS1220 fix)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "v5-fix/**"
+      - ".github/workflows/build-v5.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sim-pedals-v5-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-v5:
+    name: Build V5.2 pedal node and hub UF2
+    runs-on: ubuntu-22.04
+    container:
+      image: ghcr.io/nrfconnect/sdk-nrf-toolchain:v3.1.1
+    defaults:
+      run:
+        shell: bash
+    timeout-minutes: 120
+    steps:
+      - name: Check out build files
+        uses: actions/checkout@v4
+
+      - name: Check out V5.1 source archive
+        uses: actions/checkout@v4
+        with:
+          ref: from-claude
+          path: v5-input
+
+      - name: Unpack V5.1 and apply ADS1220 driver fix
+        run: |
+          set -euo pipefail
+          test -s v5-input/sim_pedals_v5.1.zip
+          mkdir -p v5-source
+          unzip -q v5-input/sim_pedals_v5.1.zip -d v5-source
+          test -f v5-source/firmware_pedals/src/ads1220.c
+          test -f v5-source/firmware_hub/src/main.c
+          cp v5-fix/ads1220.c v5-source/firmware_pedals/src/ads1220.c
+          echo "Applied repository v5-fix/ads1220.c"
+          sha256sum v5-source/firmware_pedals/src/ads1220.c
+
+      - name: Verify Nordic toolchain
+        run: |
+          set -euo pipefail
+          command -v west
+          command -v arm-zephyr-eabi-gcc
+          west --version
+          arm-zephyr-eabi-gcc --version
+
+      - name: Initialize nRF Connect SDK v3.1.1
+        run: |
+          set -euo pipefail
+          west init -m https://github.com/nrfconnect/sdk-nrf --mr v3.1.1 ncs
+          cd ncs
+          west update
+          west zephyr-export
+
+      - name: Build pedal controller V5.2 candidate
+        run: |
+          set -euo pipefail
+          cd ncs
+          west build -p always \
+            -b promicro_nrf52840/nrf52840/uf2 \
+            ../v5-source/firmware_pedals \
+            -d build_pedals
+
+      - name: Build USB hub from V5.1 source
+        run: |
+          set -euo pipefail
+          cd ncs
+          west build -p always \
+            -b promicro_nrf52840/nrf52840/uf2 \
+            ../v5-source/firmware_hub \
+            -d build_hub
+
+      - name: Verify and collect firmware
+        run: |
+          set -euo pipefail
+          test -s ncs/build_pedals/firmware_pedals/zephyr/zephyr.uf2
+          test -s ncs/build_hub/firmware_hub/zephyr/zephyr.uf2
+          mkdir -p artifacts
+          cp ncs/build_pedals/firmware_pedals/zephyr/zephyr.uf2 artifacts/pedals-V5.2-candidate.uf2
+          cp ncs/build_hub/firmware_hub/zephyr/zephyr.uf2 artifacts/hub-V5.2-candidate.uf2
+          cp ncs/build_pedals/firmware_pedals/zephyr/zephyr.elf artifacts/pedals.elf
+          cp ncs/build_hub/firmware_hub/zephyr/zephyr.elf artifacts/hub.elf
+          cp ncs/build_pedals/firmware_pedals/zephyr/.config artifacts/pedals.config
+          cp ncs/build_hub/firmware_hub/zephyr/.config artifacts/hub.config
+          {
+            echo "commit=${{ github.sha }}"
+            echo "ncs=v3.1.1"
+            echo "board=promicro_nrf52840/nrf52840/uf2"
+            echo "source=V5.1 + v5-fix/ads1220.c"
+          } > artifacts/build-info.txt
+          ls -lh artifacts
+
+      - name: Upload V5.2 candidate firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: sim-pedals-V5.2-candidate-${{ github.sha }}
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 30
