@@ -1,7 +1,7 @@
 {
   "project": "Sim Pedals",
   "source_archive": "from-claude/sim_pedals_v5.1.zip",
-  "source_commit": "d507dc73fdd4527a733d715469ec40e1add516d7",
+  "source_commit": "8725d59dba099ba85081330a4467b488c072338d",
   "ads1220_spi_mode": "Mode 1 (CPOL=0, CPHA=1)",
   "ads1220_half_delay_us": 2,
   "playable_pedal_axes": 3,
