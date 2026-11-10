@@ -39,7 +39,7 @@ enum pp_dev_type {
 #define PP_DIAG_LEN 7
 struct __attribute__((packed)) pp_diag {
 	uint8_t error;          /* 0 OK, 1 GPIO/device, 2 register mismatch, 3 DRDY, 4 SPI */
-	uint8_t drdy_active;    /* 1 = active; for ACTIVE_LOW this means physical LOW */
+	uint8_t drdy_active;    /* bit0 = DRDY active-low; bit1 = MISO idle-high with CS inactive */
 	uint8_t tries;          /* saturating number of init attempts */
 	uint8_t regs[4];        /* ADS1220 register 0..3 readback */
 };
