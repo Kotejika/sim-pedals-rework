@@ -146,12 +146,13 @@ jobs:
         run: |
           $env:PYTHONPATH = "project/pc_app"
           $env:QT_QPA_PLATFORM = "offscreen"
-          python -m py_compile project/pc_app/*.py final-src/patch_app.py
+          python -c "import pathlib, py_compile; [py_compile.compile(str(p), doraise=True) for p in pathlib.Path('project/pc_app').glob('*.py')]; py_compile.compile('final-src/patch_app.py', doraise=True)"
           python final-src/test_gui_smoke.py
       - name: Package Windows executable
         shell: pwsh
         run: |
-          pyinstaller --noconfirm --clean --onefile --windowed --name SimPedals --distpath dist --workpath build --specpath build --add-data "project/pc_app/assets/pit_crew_anime.svg;assets" --hidden-import hid project/pc_app/app.py
+          $asset = (Resolve-Path "project/pc_app/assets/pit_crew_anime.svg").Path
+          pyinstaller --noconfirm --clean --onefile --windowed --name SimPedals --distpath dist --workpath build --specpath build --add-data "$asset;assets" --hidden-import hid project/pc_app/app.py
           if (!(Test-Path "dist/SimPedals.exe")) { throw "SimPedals.exe was not created" }
       - uses: actions/upload-artifact@v4
         with:
