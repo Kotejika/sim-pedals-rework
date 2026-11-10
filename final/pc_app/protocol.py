@@ -99,10 +99,10 @@ def parse_live(frame: bytes):
         if has_diag:
             if pos + PP_DIAG_LEN > 52:
                 return None
-            error, drdy_active, tries = struct.unpack_from("<BBB", frame, pos)
+            error, pin_flags, tries = struct.unpack_from("<BBB", frame, pos)
             regs = tuple(frame[pos + 3:pos + 7])
-            diag = {"error": error, "drdy_active": bool(drdy_active),
-                    "tries": tries, "regs": regs}
+            diag = {"error": error, "drdy_active": bool(pin_flags & 1),
+                    "miso_idle_high": bool(pin_flags & 2), "tries": tries, "regs": regs}
             pos += PP_DIAG_LEN
         res.append(DevLive(t, batt * 20, flags, bool(alive), pps, raw, out, diag))
     return res
