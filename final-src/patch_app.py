@@ -48,6 +48,19 @@ app = replace_once(app, "        self.resize(980, 760)\n",
 # The original root layout is intentionally kept; the wallpaper widget paints behind it.
 app = app.replace("DRDY pin %s", "DRDY physical level %s")
 app = app.replace('"SPI device not ready"', '"GPIO / ADC initialization failed"')
+app = replace_once(app, "    def connect_hub(self):\n        self.disconnect()\n        try:\n",
+                   "    def connect_hub(self):\n        self.disconnect()\n        hub = None\n        try:\n",
+                   "connection cleanup setup")
+app = replace_once(app,
+                   '        except Exception as e:\n            self.hub = None\n            self.status.setText("connect failed: %s" % e)\n',
+                   '        except Exception as e:\n            if hub is not None:\n                try:\n                    hub.close()\n                except Exception:\n                    pass\n            self.hub = None\n            self.status.setText("connect failed: %s" % e)\n',
+                   "connection cleanup")
+app = replace_once(app, '            json.dump(data, open(path, "w"), indent=1)\n',
+                   '            with open(path, "w", encoding="utf-8") as f:\n                json.dump(data, f, indent=2)\n',
+                   "profile save")
+app = replace_once(app, '        data = json.load(open(path))\n',
+                   '        with open(path, "r", encoding="utf-8") as f:\n            data = json.load(f)\n',
+                   "profile load")
 app_file.write_text(app, encoding="utf-8")
 
 widgets = widgets_file.read_text(encoding="utf-8")
