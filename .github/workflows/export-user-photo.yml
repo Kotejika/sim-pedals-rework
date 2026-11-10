@@ -48,3 +48,5 @@ jobs:
           path: wallpaper/user-wallpaper.png
           if-no-files-found: error
           retention-days: 14
+
+# Trigger a second push so the workflow is picked up.
