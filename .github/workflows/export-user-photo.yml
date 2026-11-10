@@ -37,7 +37,7 @@ jobs:
           import struct
           from pathlib import Path
           b = Path("wallpaper/user-wallpaper.png").read_bytes()
-          if b[:8] != b"\\x89PNG\\r\\n\\x1a\\n":
+          if b[:8] != bytes([137, 80, 78, 71, 13, 10, 26, 10]):
               raise SystemExit("User wallpaper is not a PNG")
           width, height = struct.unpack(">II", b[16:24])
           if width < 640 or height < 360:
