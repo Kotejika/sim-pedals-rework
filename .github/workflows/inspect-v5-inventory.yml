@@ -1,0 +1,41 @@
+name: Inspect V5 app and source inventory
+
+on:
+  push:
+    branches: [from-claude]
+    paths:
+      - "sim_pedals_v5.1.zip"
+      - ".github/workflows/inspect-v5-inventory.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inventory V5.1 archive
+        run: |
+          python3 - <<'PY'
+          import zipfile
+          from pathlib import PurePosixPath
+          z = zipfile.ZipFile("sim_pedals_v5.1.zip")
+          names = sorted(z.namelist())
+          print("=== ALL FILES ===")
+          for name in names:
+              info = z.getinfo(name)
+              print(f"{info.file_size:9d}  {name}")
+          print("\n=== WINDOWS / UI / PACKAGING CANDIDATES ===")
+          exts = {".py", ".cs", ".csproj", ".sln", ".xaml", ".qml", ".ui", ".json",
+                  ".toml", ".yaml", ".yml", ".ico", ".png", ".jpg", ".jpeg",
+                  ".svg", ".html", ".css", ".js", ".exe", ".spec", ".iss"}
+          for name in names:
+              p = PurePosixPath(name)
+              if p.suffix.lower() in exts or any(k in name.lower() for k in ("app", "gui", "host", "config")):
+                  print(name)
+          print("\n=== TOP LEVEL ROOTS ===")
+          roots = sorted({PurePosixPath(n).parts[0] for n in names if PurePosixPath(n).parts})
+          print("\n".join(roots))
+          PY

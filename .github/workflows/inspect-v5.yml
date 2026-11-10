@@ -1,0 +1,28 @@
+name: Inspect V5 source
+on:
+  push:
+    branches: [from-claude]
+    paths:
+      - "sim_pedals_v5.1.zip"
+      - ".github/workflows/inspect-v5.yml"
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract relevant V5 sources
+        run: |
+          set -euo pipefail
+          echo "===== ARCHIVE INVENTORY ====="
+          unzip -Z1 sim_pedals_v5.1.zip
+          unzip -p sim_pedals_v5.1.zip firmware_pedals/src/ads1220.c
+          echo "===== ADS1220 HEADER ====="
+          unzip -p sim_pedals_v5.1.zip firmware_pedals/src/ads1220.h
+          echo "===== PEDALS MAIN ====="
+          unzip -p sim_pedals_v5.1.zip firmware_pedals/src/main.c
+          echo "===== PEDALS OVERLAY ====="
+          unzip -p sim_pedals_v5.1.zip firmware_pedals/boards/promicro_nrf52840_nrf52840_uf2.overlay
+          echo "===== DIAGNOSTIC MINIMAL ====="
+          unzip -p sim_pedals_v5.1.zip diag_min/src/main.c
