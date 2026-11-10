@@ -10,11 +10,12 @@ struct ads1220 {
 };
 
 /* what the last init attempt saw; goes into the radio packet when the chip is not OK */
-enum ads_err { ADS_OK = 0, ADS_ERR_DEV = 1, ADS_ERR_REGS = 2, ADS_ERR_DRDY = 3, ADS_ERR_SPI = 4 };
+enum ads_err { ADS_OK = 0, ADS_ERR_DEV = 1, ADS_ERR_REGS = 2, ADS_ERR_DRDY = 3, ADS_ERR_SPI = 4, ADS_ERR_MISO_LOW_IDLE = 5 };
 struct ads_diag {
 	uint8_t err;
 	uint8_t regs[4];      /* REG0..REG3 as read back */
 	uint8_t tries;
+	uint8_t miso_idle_high; /* MISO must be pulled high while CS is inactive */
 };
 extern struct ads_diag ads_diag;
 
