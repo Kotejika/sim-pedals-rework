@@ -59,6 +59,8 @@ widgets = replace_once(
 )
 widgets = widgets.replace("p.fillRect(self.rect(), pal.base())",
                           "p.fillRect(self.rect(), QColor(5, 13, 25, 145))")
+widgets = widgets.replace("from PySide6.QtWidgets import QWidget",
+                          "from PySide6.QtWidgets import QWidget\\nfrom PySide6.QtSvg import QSvgRenderer")
 widgets += r'''
 
 class BackgroundWidget(QWidget):
