@@ -16,7 +16,7 @@ permissions:
 
 concurrency:
   group: sim-pedals-final
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   prepare:
@@ -105,6 +105,7 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: |
           set -euo pipefail
+          python3 -m json.tool final/BUILD_INFO.json > /dev/null
           cd final
           gcc -std=c11 -Wall -Wextra -Werror -Wno-unused-parameter \
             -Itests/stubs -Ifirmware_pedals/src \
@@ -273,6 +274,7 @@ jobs:
           (out / "SHA256SUMS.txt").write_text(
               "\n".join(f"{v['sha256']}  {k}.uf2" for k, v in info["firmware"].items()) + "\n",
               encoding="utf-8")
+          json.loads((out / "build-info.json").read_text(encoding="utf-8"))
           print(json.dumps(info["firmware"], indent=2))
           PY
 
