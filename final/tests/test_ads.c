@@ -16,6 +16,7 @@ static int errors;          /* protocol violations seen by the model */
 static int fail_pin = -1;
 static int fail_get_pin = -1;
 static int fail_config_pin = -1;
+static int force_miso_idle_low;
 static int sample_edge_errors;
 static int mosi_change_high_errors;
 static int cs_low_frames;
@@ -46,7 +47,7 @@ static void end_frame(void)
 bool gpio_is_ready_dt(const struct gpio_dt_spec *s) { return s->port && s->port->ready; }
 int gpio_pin_configure_dt(const struct gpio_dt_spec *s, int f)
 {
-	(void)f;
+	if (s->pin == P_MISO && !(f & GPIO_PULL_UP)) errors++;
 	return s->pin == fail_config_pin ? -EIO : 0;
 }
 int gpio_pin_set_dt(const struct gpio_dt_spec *s, int v)
@@ -78,7 +79,7 @@ int gpio_pin_get_dt(const struct gpio_dt_spec *s)
 	if (s->pin == fail_get_pin) return -EIO;
 	if (s->pin == P_MISO) {
 		if (!cs_lvl_logical || sck) sample_edge_errors++;
-		return cs_lvl_logical ? miso_out : 1;
+		return cs_lvl_logical ? miso_out : (force_miso_idle_low ? 0 : 1);
 	}
 	return 0;
 }
@@ -92,7 +93,12 @@ int main(void)
 	struct ads1220 a = {.cs = {&gp, P_CS, 0}, .sck = {&gp, P_SCK, 0}, .mosi = {&gp, P_MOSI, 0}, .miso = {&gp, P_MISO, 0}};
 
 	mode = M_OK;
+	force_miso_idle_low = 1;
+	CHECK(ads1220_init(&a) == -EIO && ads_diag.err == ADS_ERR_MISO_LOW_IDLE);
+	CHECK(ads_diag.miso_idle_high == 0 && cs_lvl_logical == 0);
+	force_miso_idle_low = 0;
 	CHECK(ads1220_init(&a) == 0);
+	CHECK(ads_diag.miso_idle_high == 1);
 	CHECK(started == 1 && resets == 1);
 	CHECK(regs[0] == 0x0E && regs[1] == 0xC4 && regs[2] == 0xC0 && regs[3] == 0x00);
 	CHECK(ads_diag.err == ADS_OK && ads_diag.regs[0] == 0x0E && ads_diag.regs[1] == 0xC4 && ads_diag.regs[2] == 0xC0);
