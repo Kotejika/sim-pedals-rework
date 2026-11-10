@@ -1,0 +1,285 @@
+name: Build Sim Pedals FINAL
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/build-final.yml"
+      - "tools/apply_final_patches.py"
+      - "tools/harden_final.py"
+      - "ERROR_CONSTITUTION_RU.md"
+      - "ARCHITECTURE_RESEARCH_RU.md"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sim-pedals-final
+  cancel-in-progress: true
+
+jobs:
+  prepare:
+    name: Prepare full source and run tests
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Checkout user source archive
+        uses: actions/checkout@v4
+        with:
+          ref: from-claude
+          path: v5-input
+          fetch-depth: 1
+
+      - name: Extract and patch full source
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import zipfile
+          archive = Path("v5-input/sim_pedals_v5.1.zip")
+          if not archive.is_file() or archive.stat().st_size == 0:
+              raise SystemExit("V5.1 source archive is missing")
+          with zipfile.ZipFile(archive) as z:
+              bad = z.testzip()
+              if bad:
+                  raise SystemExit(f"Corrupt ZIP member: {bad}")
+              z.extractall("final")
+          required = [
+              "pc_app/app.py", "pc_app/device.py", "pc_app/protocol.py",
+              "firmware_pedals/src/main.c", "firmware_pedals/src/ads1220.c",
+              "firmware_hub/src/main.c", "firmware_hub/src/radio.c",
+              "firmware_hub/src/usb.c", "common/pedal_protocol.h",
+              "tests/test_ads.c", "tests/test_axis.c",
+          ]
+          missing = [p for p in required if not (Path("final") / p).is_file()]
+          if missing:
+              raise SystemExit("Required source files missing: " + ", ".join(missing))
+          PY
+          python3 tools/apply_final_patches.py final
+          python3 tools/harden_final.py final
+          cp ERROR_CONSTITUTION_RU.md final/
+          cp ARCHITECTURE_RESEARCH_RU.md final/
+          cp SOURCE_AUDIT_RU.md final/
+          cat > final/README.md <<'EOF'
+          # Sim Pedals — complete source
+
+          Complete source tree for the nRF52840 pedal node, USB hub and desktop configuration app.
+
+          The pedal node has three playable axes: clutch and throttle from SS49E Hall sensors, brake from an ADS1220 differential load cell (AIN0-AIN1). The hub exposes USB HID and configuration telemetry and communicates with the pedal node over Nordic ESB at 2 Mbps.
+
+          The Windows app supports calibration, smoothing, deadzone, inversion, response curves, brake load-cell calibration, profiles, hub power settings and ADS1220 diagnostics. Its wallpaper uses an original, fully clothed Sachi-inspired fan illustration; it is not official manga artwork.
+
+          ADS1220 diagnostics are transported as a metadata extension, not as extra gamepad axes. Host tests and CI do not prove physical hardware behavior; complete the real-board smoke test before relying on the pedals in a race.
+          EOF
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, os
+          Path("final/BUILD_INFO.json").write_text(json.dumps({
+              "project": "Sim Pedals",
+              "source_archive": "from-claude/sim_pedals_v5.1.zip",
+              "source_commit": os.environ.get("GITHUB_SHA", "unknown"),
+              "ads1220_spi_mode": "Mode 1 (CPOL=0, CPHA=1)",
+              "ads1220_half_delay_us": 2,
+              "playable_pedal_axes": 3,
+              "ads1220_diagnostics": "separate 7-byte metadata extension",
+              "hardware_validation": "pending physical board smoke test"
+          }, indent=2) + "\\n", encoding="utf-8")
+          PY
+
+      - name: Install Qt test dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y libgl1 libegl1 libxkbcommon-x11-0
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r final/pc_app/requirements.txt
+
+      - name: Run all host tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          set -euo pipefail
+          cd final
+          gcc -std=c11 -Wall -Wextra -Werror -Wno-unused-parameter \
+            -Itests/stubs -Ifirmware_pedals/src \
+            tests/test_ads.c firmware_pedals/src/ads1220.c -o /tmp/test_ads
+          /tmp/test_ads
+          gcc -std=c11 -Wall -Wextra -Werror -Icommon \
+            tests/test_axis.c common/axis_proc.c -o /tmp/test_axis
+          /tmp/test_axis
+          python3 -I tests/test_python_mirror.py
+          python3 tests/test_protocol_diag.py
+          python3 -m compileall -q pc_app tests
+          python3 tests/test_gui_smoke.py
+
+      - name: Package tested source tree
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import zipfile, hashlib
+          root = Path("final")
+          out = Path("sim-pedals-final-source.zip")
+          with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=7) as z:
+              for p in sorted(root.rglob("*")):
+                  if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc":
+                      z.write(p, p.relative_to(root).as_posix())
+          with zipfile.ZipFile(out) as z:
+              bad = z.testzip()
+              if bad:
+                  raise SystemExit(f"Bad source ZIP member: {bad}")
+          print("Source ZIP SHA256:", hashlib.sha256(out.read_bytes()).hexdigest())
+          PY
+
+      - name: Commit actual source tree to main
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add final/
+          if ! git diff --cached --quiet; then
+            git commit -m "Add complete prepared Sim Pedals source tree"
+            git fetch origin main
+            git rebase origin/main
+            git push origin HEAD:main
+          fi
+
+      - name: Upload source package
+        uses: actions/upload-artifact@v4
+        with:
+          name: sim-pedals-final-source
+          path: sim-pedals-final-source.zip
+          if-no-files-found: error
+          retention-days: 30
+
+  firmware:
+    name: Build matched pedals and hub UF2
+    needs: prepare
+    runs-on: ubuntu-22.04
+    container:
+      image: ghcr.io/nrfconnect/sdk-nrf-toolchain:v3.1.1
+    defaults:
+      run:
+        shell: bash
+    timeout-minutes: 120
+    steps:
+      - name: Download exact tested source
+        uses: actions/download-artifact@v4
+        with:
+          name: sim-pedals-final-source
+          path: source-package
+
+      - name: Extract tested source
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import zipfile
+          p = Path("source-package/sim-pedals-final-source.zip")
+          if not p.is_file():
+              raise SystemExit("The tested source artifact is missing")
+          with zipfile.ZipFile(p) as z:
+              bad = z.testzip()
+              if bad:
+                  raise SystemExit(f"Corrupt source archive member: {bad}")
+              z.extractall("final")
+          PY
+
+      - name: Verify Nordic toolchain
+        run: |
+          set -euo pipefail
+          command -v west
+          command -v arm-zephyr-eabi-gcc
+          west --version
+          arm-zephyr-eabi-gcc --version
+
+      - name: Initialize nRF Connect SDK 3.1.1
+        run: |
+          set -euo pipefail
+          west init -m https://github.com/nrfconnect/sdk-nrf --mr v3.1.1 ncs
+          cd ncs
+          west update
+          west zephyr-export
+
+      - name: Build pedal controller
+        run: |
+          set -euo pipefail
+          cd ncs
+          west build -p always -b promicro_nrf52840/nrf52840/uf2 \
+            ../final/firmware_pedals -d build_pedals
+
+      - name: Build USB hub
+        run: |
+          set -euo pipefail
+          cd ncs
+          west build -p always -b promicro_nrf52840/nrf52840/uf2 \
+            ../final/firmware_hub -d build_hub
+
+      - name: Verify and collect UF2 pair
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, json, os, struct
+          candidates = {
+              "pedals": Path("ncs/build_pedals/firmware_pedals/zephyr/zephyr.uf2"),
+              "hub": Path("ncs/build_hub/firmware_hub/zephyr/zephyr.uf2"),
+          }
+          def verify(path):
+              b = path.read_bytes()
+              if not b or len(b) % 512:
+                  raise SystemExit(f"{path}: invalid UF2 length")
+              blocks = len(b) // 512
+              seen = set()
+              for i in range(blocks):
+                  off = i * 512
+                  magic0, magic1, flags, addr, size, num, total, family = struct.unpack_from("<8I", b, off)
+                  end_magic = struct.unpack_from("<I", b, off + 508)[0]
+                  if (magic0 != 0x0A324655 or magic1 != 0x9E5D5157 or
+                      end_magic != 0x0AB16F30 or size != 256 or
+                      num != i or total != blocks or family != 0xADA52840 or
+                      not (flags & 0x2000) or addr % 256):
+                      raise SystemExit(f"{path}: UF2 block {i} failed validation")
+                  if addr in seen:
+                      raise SystemExit(f"{path}: duplicate target address")
+                  seen.add(addr)
+              return {"bytes": len(b), "blocks": blocks,
+                      "sha256": hashlib.sha256(b).hexdigest()}
+          out = Path("artifacts")
+          out.mkdir(exist_ok=True)
+          info = {
+              "project": "Sim Pedals",
+              "source_commit": os.environ.get("GITHUB_SHA", "unknown"),
+              "ncs": "v3.1.1",
+              "board": "promicro_nrf52840/nrf52840/uf2",
+              "physical_hardware_test": "not performed by CI",
+              "firmware": {}
+          }
+          for name, src in candidates.items():
+              if not src.is_file():
+                  raise SystemExit(f"Missing firmware output: {src}")
+              info["firmware"][name] = verify(src)
+              (out / f"{name}.uf2").write_bytes(src.read_bytes())
+              build_dir = Path(f"ncs/build_{name}/firmware_{name}/zephyr")
+              (out / f"{name}.elf").write_bytes((build_dir / "zephyr.elf").read_bytes())
+              (out / f"{name}.config").write_bytes((build_dir / ".config").read_bytes())
+          (out / "build-info.json").write_text(json.dumps(info, indent=2) + "\\n", encoding="utf-8")
+          (out / "SHA256SUMS.txt").write_text(
+              "\\n".join(f"{v['sha256']}  {k}.uf2" for k, v in info["firmware"].items()) + "\\n",
+              encoding="utf-8")
+          print(json.dumps(info["firmware"], indent=2))
+          PY
+
+      - name: Upload matching UF2 pair
+        uses: actions/upload-artifact@v4
+        with:
+          name: sim-pedals-final-firmware
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 30
