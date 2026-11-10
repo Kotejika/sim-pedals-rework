@@ -78,7 +78,8 @@ int gpio_pin_get_dt(const struct gpio_dt_spec *s)
 {
 	if (s->pin == fail_get_pin) return -EIO;
 	if (s->pin == P_MISO) {
-		if (!cs_lvl_logical || sck) sample_edge_errors++;
+		/* MISO is intentionally sampled once with CS inactive to verify its pull-up. */
+		if (sck) sample_edge_errors++;
 		return cs_lvl_logical ? miso_out : (force_miso_idle_low ? 0 : 1);
 	}
 	return 0;
